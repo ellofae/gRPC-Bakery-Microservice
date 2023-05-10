@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
+
+	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
 
 	"github.com/ellofae/RESTful-API-Gorilla/data"
 	"github.com/gorilla/mux"
@@ -46,18 +49,41 @@ func (p *Products) GetProductByID(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	productSpec := &data.Product{}
+	found := false
+
 	lp := data.GetProducts()
 	for _, prod := range lp {
 		if prod.ID == idInteger {
-			err = prod.ToJSON(rw)
-			if err != nil {
-				http.Error(rw, "[Error] Didn't manage to encode products data", http.StatusInternalServerError)
-				return
-			}
-			return
+			productSpec = prod
+			found = true
+			break
 		}
 	}
 
-	p.l.Printf("There is no such product with ID %d\n", idInteger)
-	http.Error(rw, fmt.Sprintf("Didn't manage to find the product with ID: %d", idInteger), http.StatusBadRequest)
+	if !found {
+		p.l.Printf("There is no such product with ID %d\n", idInteger)
+		http.Error(rw, fmt.Sprintf("Didn't manage to find the product with ID: %d", idInteger), http.StatusBadRequest)
+		return
+	}
+
+	// get exchange
+	rr := &protos.RateRequest{
+		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
+		Description: protos.Currencies(protos.Currencies_value["GBP"]),
+	}
+	resp, err := p.cc.GetRate(context.Background(), rr)
+	if err != nil {
+		p.l.Println("[Error] error getting new rate", err)
+		http.Error(rw, fmt.Sprintf("Didn't manage to get new rate: %w", err), http.StatusInternalServerError)
+		return
+	}
+
+	productSpec.Price = productSpec.Price * resp.Rate
+
+	err = productSpec.ToJSON(rw)
+	if err != nil {
+		http.Error(rw, "[Error] Didn't manage to encode products data", http.StatusInternalServerError)
+		return
+	}
 }

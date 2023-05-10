@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"github.com/ellofae/RESTful-API-Gorilla/data"
+	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
 )
 
 // ProductsResponse is a satisfied response to the call of data from the data storage
@@ -83,11 +84,12 @@ type addDataServerErrorWrapper struct {
 }
 
 type Products struct {
-	l *log.Logger
+	l  *log.Logger
+	cc protos.CurrencyClient
 }
 
-func NewProducts(l *log.Logger) *Products {
-	return &Products{l}
+func NewProducts(l *log.Logger, cc protos.CurrencyClient) *Products {
+	return &Products{l, cc}
 }
 
 type MiddlewareDataKey struct{}

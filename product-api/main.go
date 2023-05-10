@@ -10,14 +10,28 @@ import (
 
 	"github.com/ellofae/RESTful-API-Gorilla/files"
 	"github.com/ellofae/RESTful-API-Gorilla/handlers"
+	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
 	"github.com/go-openapi/runtime/middleware"
 	gohandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
 )
 
 func main() {
 	l := log.New(os.Stdout, "bakery-api", log.LstdFlags)
-	ph := handlers.NewProducts(l)
+
+	// Connection setting
+	conn, err := grpc.Dial("localhost:9092", grpc.WithInsecure())
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// Client creation
+	cc := protos.NewCurrencyClient(conn)
+
+	// Handlers
+	ph := handlers.NewProducts(l, cc)
 
 	sm := mux.NewRouter()
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
@@ -63,6 +77,7 @@ func main() {
 	}
 
 	go func() {
+		l.Println("Starting server on port 9090")
 		err := srv.ListenAndServe()
 		if err != nil {
 			l.Fatal(err)
