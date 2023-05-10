@@ -70,7 +70,7 @@ func (p *Products) GetProductByID(rw http.ResponseWriter, r *http.Request) {
 	// get exchange
 	rr := &protos.RateRequest{
 		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
-		Description: protos.Currencies(protos.Currencies_value["GBP"]),
+		Destination: protos.Currencies(protos.Currencies_value["GBP"]),
 	}
 	resp, err := p.cc.GetRate(context.Background(), rr)
 	if err != nil {
