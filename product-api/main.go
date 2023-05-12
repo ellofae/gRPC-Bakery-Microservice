@@ -39,8 +39,11 @@ func main() {
 
 	sm := mux.NewRouter()
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
-	getRouter.HandleFunc("/", ph.GetProducts)
-	getRouter.HandleFunc("/{id:[0-9]+}", ph.GetProductByID)
+	getRouter.HandleFunc("/products", ph.GetProducts).Queries("currency", "{[A-Z]{3}}")
+	getRouter.HandleFunc("/products", ph.GetProducts)
+
+	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.GetProductByID).Queries("currency", "{[A-Z]{3}}")
+	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.GetProductByID)
 
 	postRouter := sm.Methods(http.MethodPost).Subrouter()
 	postRouter.HandleFunc("/", ph.AddProducts)
@@ -75,16 +78,17 @@ func main() {
 	srv := &http.Server{
 		Addr:         ":9090",
 		Handler:      ch(sm),
+		ErrorLog:     l.StandardLogger(&hclog.StandardLoggerOptions{}),
 		IdleTimeout:  120 * time.Second,
-		ReadTimeout:  1 * time.Second,
-		WriteTimeout: 1 * time.Second,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	go func() {
 		l.Info("Starting server on port 9090")
 		err := srv.ListenAndServe()
 		if err != nil {
-			l.Error("Didn't manage to run the server on port 9090", "error", err)
+			l.Error("Server was stopped on port 9090", "error", err)
 			os.Exit(1)
 		}
 	}()

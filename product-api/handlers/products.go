@@ -67,6 +67,14 @@ type productIDParameter struct {
 	ID int `json:"id"`
 }
 
+// swagger:parameters listProducts listSingleProduct
+type productQueryParam struct {
+	// Currency used when returning the price of the product
+	// when not specified currency is returned in EUR
+
+	Currency string
+}
+
 // AddData is a satisfied resposne to the request to add new data to the data storage
 // swagger:response addData
 type addDataWrapper struct {
