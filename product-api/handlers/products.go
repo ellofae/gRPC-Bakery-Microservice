@@ -17,11 +17,10 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"net/http"
 
 	"github.com/ellofae/RESTful-API-Gorilla/data"
-	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 // ProductsResponse is a satisfied response to the call of data from the data storage
@@ -84,12 +83,12 @@ type addDataServerErrorWrapper struct {
 }
 
 type Products struct {
-	l  *log.Logger
-	cc protos.CurrencyClient
+	l         hclog.Logger
+	productDB *data.ProductsDB
 }
 
-func NewProducts(l *log.Logger, cc protos.CurrencyClient) *Products {
-	return &Products{l, cc}
+func NewProducts(l hclog.Logger, db *data.ProductsDB) *Products {
+	return &Products{l, db}
 }
 
 type MiddlewareDataKey struct{}
@@ -100,7 +99,7 @@ func (p *Products) MiddlewareValidationForDatatransfer(next http.Handler) http.H
 
 		err := productObj.FromJSON(r.Body)
 		if err != nil {
-			p.l.Println("Internal Server Error: didn't manage to unmarshall data")
+			p.l.Error("Didn't manage to unmarshall data", "error", err)
 			http.Error(rw, "Didn't manage to decode product's data", http.StatusInternalServerError)
 			return
 		}

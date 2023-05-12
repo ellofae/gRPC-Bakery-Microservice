@@ -16,7 +16,7 @@ import (
 
 // AddProducts adds a new product to the data storage
 func (p *Products) AddProducts(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("POST method")
+	p.l.Info("POST method")
 
 	prodObj := r.Context().Value(MiddlewareDataKey{}).(*data.Product)
 

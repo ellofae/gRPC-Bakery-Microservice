@@ -2,23 +2,24 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/ellofae/RESTful-API-Gorilla/data"
 	"github.com/ellofae/RESTful-API-Gorilla/files"
 	"github.com/ellofae/RESTful-API-Gorilla/handlers"
 	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
 	"github.com/go-openapi/runtime/middleware"
 	gohandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	hclog "github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 )
 
 func main() {
-	l := log.New(os.Stdout, "bakery-api", log.LstdFlags)
+	l := hclog.Default()
 
 	// Connection setting
 	conn, err := grpc.Dial("localhost:9092", grpc.WithInsecure())
@@ -30,8 +31,11 @@ func main() {
 	// Client creation
 	cc := protos.NewCurrencyClient(conn)
 
+	// ProductsDB
+	db := data.NewProductsDB(cc, l)
+
 	// Handlers
-	ph := handlers.NewProducts(l, cc)
+	ph := handlers.NewProducts(l, db)
 
 	sm := mux.NewRouter()
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
@@ -77,10 +81,11 @@ func main() {
 	}
 
 	go func() {
-		l.Println("Starting server on port 9090")
+		l.Info("Starting server on port 9090")
 		err := srv.ListenAndServe()
 		if err != nil {
-			l.Fatal(err)
+			l.Error("Didn't manage to run the server on port 9090", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -89,7 +94,7 @@ func main() {
 	signal.Notify(sigChan, os.Kill)
 
 	sig := <-sigChan
-	l.Println("Recived terminate, gracefil shutdown", sig)
+	l.Info("Recived terminate, gracefil shutdown", "signal", sig)
 
 	// Graceful shutdown
 	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)

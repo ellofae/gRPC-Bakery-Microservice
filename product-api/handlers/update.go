@@ -20,12 +20,12 @@ import (
 
 // UpdateData updates an existing product in the data storage
 func (p *Products) UpdateData(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("PUT method")
+	p.l.Info("PUT method")
 
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		p.l.Println("Bad Request Error: didn't manage to covnert string to int")
+		p.l.Error("Didn't manage to covnert string to int", "error", err)
 		http.Error(rw, "Incorrect URI", http.StatusBadRequest)
 		return
 	}

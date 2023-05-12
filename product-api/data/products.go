@@ -1,13 +1,16 @@
 package data
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
 	"time"
 
+	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
 	"github.com/go-playground/validator"
+	"github.com/hashicorp/go-hclog"
 )
 
 // Product data type structure
@@ -20,7 +23,7 @@ type Product struct {
 	ID          int     `json:"id"`
 	Title       string  `json:"title" validate:"required,title"`
 	Description string  `json:"description" validate:"required,description"`
-	Price       float32 `json:"price" validate:"gt=0"`
+	Price       float64 `json:"price" validate:"gt=0"`
 	SKU         string  `json:"sku" validate:"required,sku"`
 	CreatedOn   string  `json:"-"`
 	UpdatedOn   string  `json:"-"`
@@ -68,6 +71,77 @@ func validateTitle(fl validator.FieldLevel) bool {
 
 //
 
+// ProductsDB type
+type ProductsDB struct {
+	currency protos.CurrencyClient
+	log      hclog.Logger
+}
+
+func NewProductsDB(c protos.CurrencyClient, l hclog.Logger) *ProductsDB {
+	return &ProductsDB{c, l}
+}
+
+func (p *ProductsDB) GetProducts(currency string) (Products, error) {
+	if currency == "" {
+		return productList, nil
+	}
+
+	rate, err := p.getRate(currency)
+	if err != nil {
+		p.log.Error("Unable to get rate", "error", err)
+		return nil, err
+	}
+
+	prods := Products{}
+	for _, p := range productList {
+		np := *p
+		np.Price = np.Price * rate
+		prods = append(prods, &np)
+	}
+
+	return prods, nil
+}
+
+func (p *ProductsDB) GetProductByID(id int, currency string) (*Product, error) {
+	i := findIndexByProductID(id)
+	if id == -1 {
+		return nil, fmt.Errorf("there is no product with id %d", id)
+	}
+
+	if currency == "" {
+		return nil, fmt.Errorf("incorrect currency for the currency rate request: %s", currency)
+	}
+
+	rate, err := p.getRate(currency)
+	if err != nil {
+		p.log.Error("Unable to get rate", "error", err)
+		return nil, err
+	}
+
+	np := *productList[i]
+	np.Price = np.Price * rate
+
+	return &np, nil
+}
+
+func (p *ProductsDB) AddProduct(prod *Product) {
+	prod.ID = getProductID()
+	productList = append(productList, prod)
+}
+
+func (p *ProductsDB) UpdateData(id int, prod *Product) error {
+	pos, err := getProductPosition(id)
+	if err != nil {
+		return err
+	}
+
+	prod.ID = id
+	productList[pos] = prod
+
+	return nil
+}
+
+// Products type
 type Products []*Product
 
 func (p *Product) ToJSON(w io.Writer) error {
@@ -120,6 +194,26 @@ func getProductPosition(id int) (int, error) {
 func getProductID() int {
 	p := productList[len(productList)-1]
 	return p.ID + 1
+}
+
+func findIndexByProductID(id int) int {
+	for i, p := range productList {
+		if p.ID == id {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func (p *ProductsDB) getRate(dest string) (float64, error) {
+	rr := &protos.RateRequest{
+		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
+		Destination: protos.Currencies(protos.Currencies_value[dest]),
+	}
+
+	resp, err := p.currency.GetRate(context.Background(), rr)
+	return resp.Rate, err
 }
 
 var productList = []*Product{

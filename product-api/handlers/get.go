@@ -1,14 +1,10 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 
-	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
-
-	"github.com/ellofae/RESTful-API-Gorilla/data"
 	"github.com/gorilla/mux"
 )
 
@@ -22,11 +18,15 @@ import (
 
 // GetProducts returns the products from the data storage
 func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("GET Method")
+	p.l.Info("GET Method")
 
-	lp := data.GetProducts()
+	lp, err := p.productDB.GetProducts("")
+	if err != nil {
+		p.l.Error("Didn't manage to get the list of products", "error", err)
+		return
+	}
 
-	err := lp.ToJSON(rw)
+	err = lp.ToJSON(rw)
 	if err != nil {
 		http.Error(rw, "Didn't manage to encode products data", http.StatusInternalServerError)
 		return
@@ -34,7 +34,7 @@ func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Products) GetProductByID(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("GET Method")
+	p.l.Info("GET Method")
 
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -49,37 +49,11 @@ func (p *Products) GetProductByID(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	productSpec := &data.Product{}
-	found := false
-
-	lp := data.GetProducts()
-	for _, prod := range lp {
-		if prod.ID == idInteger {
-			productSpec = prod
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		p.l.Printf("There is no such product with ID %d\n", idInteger)
-		http.Error(rw, fmt.Sprintf("Didn't manage to find the product with ID: %d", idInteger), http.StatusBadRequest)
-		return
-	}
-
-	// get exchange
-	rr := &protos.RateRequest{
-		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
-		Destination: protos.Currencies(protos.Currencies_value["GBP"]),
-	}
-	resp, err := p.cc.GetRate(context.Background(), rr)
+	productSpec, err := p.productDB.GetProductByID(idInteger, "")
 	if err != nil {
-		p.l.Println("[Error] error getting new rate", err)
-		http.Error(rw, fmt.Sprintf("Didn't manage to get new rate: %w", err), http.StatusInternalServerError)
+		http.Error(rw, fmt.Sprintf("There is no such product with id %d", idInteger), http.StatusBadRequest)
 		return
 	}
-
-	productSpec.Price = productSpec.Price * resp.Rate
 
 	err = productSpec.ToJSON(rw)
 	if err != nil {
