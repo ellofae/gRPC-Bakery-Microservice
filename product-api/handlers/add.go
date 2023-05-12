@@ -20,5 +20,5 @@ func (p *Products) AddProducts(rw http.ResponseWriter, r *http.Request) {
 
 	prodObj := r.Context().Value(MiddlewareDataKey{}).(*data.Product)
 
-	data.AddProduct(prodObj)
+	p.productDB.AddProduct(prodObj)
 }

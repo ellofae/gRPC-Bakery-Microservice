@@ -159,27 +159,6 @@ func (p *Product) FromJSON(r io.Reader) error {
 	return decoder.Decode(p)
 }
 
-func GetProducts() Products {
-	return productList
-}
-
-func AddProduct(prod *Product) {
-	prod.ID = getProductID()
-	productList = append(productList, prod)
-}
-
-func UpdateData(id int, prod *Product) error {
-	pos, err := getProductPosition(id)
-	if err != nil {
-		return err
-	}
-
-	prod.ID = id
-	productList[pos] = prod
-
-	return nil
-}
-
 var ErrProductNotFound = fmt.Errorf("Product was not found")
 
 func getProductPosition(id int) (int, error) {

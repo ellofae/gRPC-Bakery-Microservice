@@ -32,7 +32,7 @@ func (p *Products) UpdateData(rw http.ResponseWriter, r *http.Request) {
 
 	prodObj := r.Context().Value(MiddlewareDataKey{}).(*data.Product)
 
-	err = data.UpdateData(id, prodObj)
+	err = p.productDB.UpdateData(id, prodObj)
 	if err == data.ErrProductNotFound {
 		http.Error(rw, "The product was not found", http.StatusNotFound)
 		return
