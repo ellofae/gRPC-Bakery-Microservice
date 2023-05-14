@@ -8,6 +8,8 @@ import (
 	"github.com/ellofae/gRPC-Bakery-Microservice/currency/data"
 	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
 	hclog "github.com/hashicorp/go-hclog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Currency struct {
@@ -49,6 +51,22 @@ func (c *Currency) handleUpdates() {
 
 func (c *Currency) GetRate(ctx context.Context, rr *protos.RateRequest) (*protos.RateResponse, error) {
 	c.log.Info("Handle GetRate", "base", rr.GetBase(), "destination", rr.GetDestination())
+
+	if rr.Base == rr.Destination {
+		err := status.Newf(
+			codes.InvalidArgument,
+			"Base currency %s cannot be the same as the destination currency %s",
+			rr.Base.String(),
+			rr.Destination.String(),
+		)
+
+		err, wde := err.WithDetails(rr)
+		if wde != nil {
+			return nil, wde
+		}
+
+		return nil, err.Err()
+	}
 
 	rate, err := c.rates.GetRate(rr.GetBase().String(), rr.GetDestination().String())
 	if err != nil {

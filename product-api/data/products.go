@@ -11,6 +11,8 @@ import (
 	protos "github.com/ellofae/gRPC-Bakery-Microservice/currency/protos/currency"
 	"github.com/go-playground/validator"
 	"github.com/hashicorp/go-hclog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Product data type structure
@@ -223,6 +225,19 @@ func (p *ProductsDB) getRate(dest string) (float64, error) {
 
 	// get initial rate
 	resp, err := p.currency.GetRate(context.Background(), rr)
+	if err != nil {
+		if s, ok := status.FromError(err); ok {
+			md := s.Details()[0].(protos.RateRequest)
+
+			if s.Code() == codes.InvalidArgument {
+				return -1, fmt.Errorf("unable to get rate from the currency server, destincation and base currencies cannot be the same, base: %s, dest: %s", md.Base.String(), md.Destination.String())
+			}
+			return -1, fmt.Errorf("unable to get rate from the currency server, base: %s, dest: %s", md.Base.String(), md.Destination.String())
+		}
+
+		return -1, err
+	}
+
 	p.rates[dest] = resp.Rate // update cache
 
 	// subscribe for updated
